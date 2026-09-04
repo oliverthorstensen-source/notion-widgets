@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pulssoner</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --bg:#0c0d14; --surface:#15161f; --line:#2a2c3a;
+    --text:#edeef4; --text-dim:#9497ab;
+    --good:#34d399; --good-soft:#34d3991a;
+    --font-display:'Oswald',system-ui,sans-serif;
+    --font-body:'Manrope',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-body);padding:16px;-webkit-font-smoothing:antialiased;}
+  h2{font-family:var(--font-display);font-weight:600;font-size:14px;letter-spacing:.02em;margin:0 0 3px;}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10px;letter-spacing:.05em;padding:2px 8px;border-radius:100px;margin-left:6px;}
+  .tag.malt{color:var(--good);background:var(--good-soft);border:1px solid #34d39944;}
+  .hint{color:var(--text-dim);font-size:12px;margin-bottom:12px;line-height:1.5;}
+  .zones{display:flex;height:32px;border-radius:8px;overflow:hidden;}
+  .zone{display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:11px;color:#0c0d14;font-weight:700;}
+  .zone-labels{display:flex;justify-content:space-between;margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--text-dim);}
+</style>
+</head>
+<body>
+  <h2>Pulssoner <span class="tag malt">målt, Strava</span></h2>
+  <div class="hint">Fra klokkedata (maks 211 bpm). Brukes til å styre fart på rolige vs. harde økter.</div>
+  <div class="zones">
+    <div class="zone" style="flex:128;background:#4b5563;">Z1</div>
+    <div class="zone" style="flex:32;background:#34d399;">Z2</div>
+    <div class="zone" style="flex:15;background:#fbbf24;">Z3</div>
+    <div class="zone" style="flex:16;background:#ff6a3d;">Z4</div>
+    <div class="zone" style="flex:20;background:#f43f5e;">Z5</div>
+  </div>
+  <div class="zone-labels"><span>0</span><span>128</span><span>160</span><span>175</span><span>191</span><span>211+</span></div>
+</body>
+</html>

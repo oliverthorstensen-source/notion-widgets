@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scoreboard</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --bg:#0c0d14; --surface:#15161f; --surface-2:#1d1f2a; --line:#2a2c3a;
+    --text:#edeef4; --text-dim:#9497ab;
+    --accent:#8b5cf6; --accent-soft:#8b5cf61a;
+    --accent2:#ff6a3d; --accent2-soft:#ff6a3d1a;
+    --good:#34d399; --good-soft:#34d3991a;
+    --warn:#fbbf24; --warn-soft:#fbbf241a;
+    --font-display:'Oswald',system-ui,sans-serif;
+    --font-body:'Manrope',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-body);padding:16px;-webkit-font-smoothing:antialiased;}
+  h1,h2{font-family:var(--font-display);font-weight:600;margin:0;text-wrap:balance;}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10px;letter-spacing:.05em;padding:2px 8px;border-radius:100px;line-height:1.6;white-space:nowrap;}
+  .tag.malt{color:var(--good);background:var(--good-soft);border:1px solid #34d39944;}
+  .tag.anslag{color:var(--warn);background:var(--warn-soft);border:1px solid #fbbf2444;}
+  .tag.beregnet{color:var(--accent);background:var(--accent-soft);border:1px solid #8b5cf644;}
+  .scoreboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
+  .score-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;}
+  .score-card .label{font-size:11.5px;color:var(--text-dim);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;}
+  .score-card .value{font-family:var(--font-mono);font-size:clamp(24px,3.2vw,30px);font-weight:700;letter-spacing:-.01em;}
+  .score-card .value small{font-size:13px;color:var(--text-dim);font-weight:500;margin-left:4px;}
+  .score-card.target .value{color:var(--accent2);}
+</style>
+</head>
+<body>
+  <div class="scoreboard">
+    <div class="score-card">
+      <div class="label">Beste målte 5K-splitt <span class="tag malt">● målt</span></div>
+      <div class="value">34:26 <small>6:52/km</small></div>
+    </div>
+    <div class="score-card">
+      <div class="label">Stravas 5K-estimat <span class="tag anslag">● anslag</span></div>
+      <div class="value">31:16 <small>6:15/km</small></div>
+    </div>
+    <div class="score-card target">
+      <div class="label">Kreves for sub-40 · 10K <span class="tag beregnet">● beregnet</span></div>
+      <div class="value">4:00 <small>/km jevnt</small></div>
+    </div>
+  </div>
+</body>
+</html>
