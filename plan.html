@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Treningsplan</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --bg:#0c0d14; --surface:#15161f; --surface-2:#1d1f2a; --line:#2a2c3a;
+    --text:#edeef4; --text-dim:#9497ab;
+    --accent:#8b5cf6; --accent-soft:#8b5cf61a;
+    --accent2:#ff6a3d; --accent2-soft:#ff6a3d1a;
+    --good:#34d399; --good-soft:#34d3991a;
+    --warn:#fbbf24; --warn-soft:#fbbf241a;
+    --font-display:'Oswald',system-ui,sans-serif;
+    --font-body:'Manrope',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-body);padding:18px;-webkit-font-smoothing:antialiased;}
+  h2{font-family:var(--font-display);font-weight:600;font-size:15px;letter-spacing:.02em;margin:0 0 3px;}
+  .hint{color:var(--text-dim);font-size:12px;margin-bottom:14px;line-height:1.5;}
+
+  .phases{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+  .phase-btn{
+    flex:1;min-width:110px;background:var(--surface);border:1px solid var(--line);color:var(--text-dim);
+    font-family:var(--font-body);font-weight:600;font-size:12px;padding:9px 10px;border-radius:8px;cursor:pointer;text-align:center;
+  }
+  .phase-btn.active{background:var(--accent-soft);border-color:#8b5cf666;color:var(--accent);}
+  .phase-btn .sub{display:block;font-family:var(--font-mono);font-size:9.5px;font-weight:400;margin-top:2px;opacity:.8;}
+
+  .week-nav{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:14px;}
+  .week-nav button{background:var(--surface-2);border:1px solid var(--line);color:var(--text);width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:14px;}
+  .week-nav button:hover{background:var(--accent-soft);}
+  .week-nav .week-label{flex:1;text-align:center;font-family:var(--font-mono);font-size:13px;}
+  .week-nav .week-label strong{color:var(--accent);}
+  .week-nav .week-dates{display:block;font-size:10.5px;color:var(--text-dim);margin-top:2px;}
+  .week-km{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);white-space:nowrap;}
+
+  .day{background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden;}
+  .day-head{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;}
+  .day-head .dow{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);width:34px;flex-shrink:0;}
+  .day-head .summary{flex:1;font-size:13px;font-weight:600;}
+  .day-head .summary small{font-weight:400;color:var(--text-dim);margin-left:6px;}
+  .day-head .chev{color:var(--text-dim);font-size:11px;transition:transform .15s;}
+  .day.open .chev{transform:rotate(90deg);}
+  .day-body{display:none;padding:0 14px 14px 58px;font-size:12.5px;color:var(--text-dim);line-height:1.6;}
+  .day.open .day-body{display:block;}
+  .day-body .row{margin-bottom:4px;}
+  .day-body .row b{color:var(--text);font-weight:600;}
+  .day-body ul{margin:6px 0 0;padding-left:18px;}
+  .day-body li{margin-bottom:3px;}
+  .tag-sone{display:inline-block;font-family:var(--font-mono);font-size:10px;padding:1px 7px;border-radius:100px;margin-left:6px;}
+  .rest .day-head .summary{color:var(--text-dim);font-weight:500;}
+  .placeholder{color:var(--warn);}
+
+  footer{margin-top:12px;color:var(--text-dim);font-size:11px;line-height:1.6;border-top:1px solid var(--line);padding-top:10px;}
+  footer strong{color:var(--text);}
+</style>
+</head>
+<body>
+  <h2>Treningsplan — fase → uke → dag</h2>
+  <div class="hint">Klikk en fase for å hoppe dit, blad i uker, klikk en dag for å se økten. Alt er utledet av samme progressive modell som fremdrift-widgeten.</div>
+
+  <div class="phases" id="phases"></div>
+  <div class="week-nav">
+    <button id="prevWeek">‹</button>
+    <div class="week-label">
+      <span>Uke <strong id="weekNum">1</strong> / 37</span>
+      <span class="week-dates" id="weekDates"></span>
+    </div>
+    <div class="week-km" id="weekKm"></div>
+    <button id="nextWeek">›</button>
+  </div>
+
+  <div id="days"></div>
+
+  <footer>
+    <strong>Soner:</strong> Z1 0–128 · Z2 128–160 · Z3 160–175 · Z4 175–191 · Z5 191–211+ (målt, din puls-topp). Overkropp-økten viser en plassholder — send meg planen din fra den andre samtalen, så legger jeg den inn her.
+  </footer>
+
+  <script>
+    const START = new Date(2026, 7, 31);
+    const RACE = new Date(2027, 4, 16);
+    const BASE = 15.0, GROWTH = 1.08, PEAK = 42.0;
+    const TOTAL_WEEKS = Math.floor((RACE-START)/(1000*60*60*24*7)) + 1;
+
+    const PHASES = [
+      {name:'Grunntrening', from:1, to:4, color:'#34d399'},
+      {name:'Oppbygging', from:5, to:12, color:'#fbbf24'},
+      {name:'Skjerping', from:13, to:34, color:'#ff6a3d'},
+      {name:'Nedtrapping', from:35, to:TOTAL_WEEKS, color:'#8b5cf6'},
+    ];
+    function phaseForWeek(w){ return PHASES.find(p => w>=p.from && w<=p.to) || PHASES[PHASES.length-1]; }
+
+    function weeklyTarget(w){
+      const weekStart = new Date(START.getTime() + (w-1)*7*24*60*60*1000);
+      const weeksToRace = (RACE-weekStart)/(1000*60*60*24*7);
+      if (weeksToRace <= 0) return PEAK*0.15;
+      if (weeksToRace <= 1) return PEAK*0.4;
+      if (weeksToRace <= 2) return PEAK*0.55;
+      if (weeksToRace <= 3) return PEAK*0.7;
+      let val = Math.min(BASE*Math.pow(GROWTH, w-1), PEAK);
+      if (w % 4 === 0) val *= 0.75;
+      return val;
+    }
+
+    const HOFTE_KNE = [
+      'Bulgarian split squat — 3×8-10 per ben',
+      'Ettbens hofteløft (glute bridge) — 3×12 per ben',
+      'Lateral båndgange (monster walk) — 3×15 skritt hver vei',
+      'Copenhagen plank (adduktor) — 3×20-30 sek per side',
+      'Step-ups — 3×10 per ben',
+      'Ettbens tåhev — 3×15 per ben',
+      'Stående hofteabduksjon m/ strømpe — 3×15 per side',
+      'Wall sit eller terminal kne-ekstensjon m/ bånd — 2×30-45 sek',
+    ];
+
+    function sessionFor(dow, weekNum){
+      const phase = phaseForWeek(weekNum);
+      const wk = weeklyTarget(weekNum);
+      const longKm = wk*0.45, easyKm = wk*0.30, qualKm = wk*0.25;
+      const paceByPhase = {
+        'Grunntrening': {easy:'7:30–8:00', qual:'strides/fartlek — kort og lekent', long:'7:30–8:00'},
+        'Oppbygging':   {easy:'7:15–7:45', qual:'6:15–6:40 (terskel)', long:'7:15–7:45'},
+        'Skjerping':    {easy:'7:00–7:30', qual:'3:50–4:10 (rundt målfart)', long:'6:45–7:15, fart siste del'},
+        'Nedtrapping':  {easy:'7:15–7:45', qual:'4:00–4:15, kort', long:'7:15–7:45, kort'},
+      }[phase.name];
+      const soneByPhase = {
+        'Grunntrening': {easy:'Z2', qual:'Z2–Z3', long:'Z2'},
+        'Oppbygging':   {easy:'Z2', qual:'Z3–Z4', long:'Z2'},
+        'Skjerping':    {easy:'Z2', qual:'Z4–Z5', long:'Z2–Z3'},
+        'Nedtrapping':  {easy:'Z2', qual:'Z3', long:'Z2'},
+      }[phase.name];
+
+      switch(dow){
+        case 'Man': return {type:'styrke', title:'Styrke — hofte/kne', detail:{exercises:HOFTE_KNE}};
+        case 'Tirs': return {type:'løp', title:'Løp, rolig', km:easyKm, pace:paceByPhase.easy, sone:soneByPhase.easy};
+        case 'Ons': return {type:'hvile', title:'Hvile'};
+        case 'Tors': return {type:'løp', title:'Løp, kvalitet', km:qualKm, pace:paceByPhase.qual, sone:soneByPhase.qual};
+        case 'Fre': return {type:'styrke', title:'Styrke — overkropp', detail:{placeholder:true}};
+        case 'Lør': return {type:'hvile', title:'Hvile'};
+        case 'Søn': return {type:'løp', title:'Løp, langtur', km:longKm, pace:paceByPhase.long, sone:soneByPhase.long};
+      }
+    }
+
+    function fmtDate(d){ return d.toLocaleDateString('nb-NO', {day:'2-digit', month:'2-digit'}); }
+
+    let currentWeek = 1;
+    const today = new Date();
+    const elapsedWeeks = Math.floor((today-START)/(1000*60*60*24*7)) + 1;
+    if (elapsedWeeks >= 1 && elapsedWeeks <= TOTAL_WEEKS) currentWeek = elapsedWeeks;
+
+    function renderPhases(){
+      const wrap = document.getElementById('phases');
+      wrap.innerHTML = '';
+      PHASES.forEach(p => {
+        const btn = document.createElement('div');
+        const active = phaseForWeek(currentWeek).name === p.name;
+        btn.className = 'phase-btn' + (active ? ' active' : '');
+        btn.innerHTML = `${p.name}<span class="sub">uke ${p.from}-${p.to}</span>`;
+        btn.addEventListener('click', () => { currentWeek = p.from; renderAll(); });
+        wrap.appendChild(btn);
+      });
+    }
+
+    function renderWeekNav(){
+      document.getElementById('weekNum').textContent = currentWeek;
+      const ws = new Date(START.getTime() + (currentWeek-1)*7*24*60*60*1000);
+      const we = new Date(ws.getTime() + 6*24*60*60*1000);
+      document.getElementById('weekDates').textContent = `${fmtDate(ws)}–${fmtDate(we)} · ${phaseForWeek(currentWeek).name}`;
+      document.getElementById('weekKm').textContent = `~${weeklyTarget(currentWeek).toFixed(1)} km`;
+    }
+
+    function renderDays(){
+      const wrap = document.getElementById('days');
+      wrap.innerHTML = '';
+      ['Man','Tirs','Ons','Tors','Fre','Lør','Søn'].forEach(dow => {
+        const s = sessionFor(dow, currentWeek);
+        const div = document.createElement('div');
+        div.className = 'day' + (s.type==='hvile' ? ' rest' : '');
+        let summaryHtml = s.title;
+        if (s.km) summaryHtml += ` <small>${s.km.toFixed(1)} km</small>`;
+        let bodyHtml = '';
+        if (s.type === 'løp') {
+          bodyHtml = `
+            <div class="row"><b>Distanse:</b> ~${s.km.toFixed(1)} km</div>
+            <div class="row"><b>Tempo:</b> ${s.pace} /km</div>
+            <div class="row"><b>Sone:</b> ${s.sone}</div>`;
+        } else if (s.type === 'styrke') {
+          if (s.detail.exercises) {
+            bodyHtml = `<div class="row"><b>Øvelser:</b></div><ul>${s.detail.exercises.map(e=>`<li>${e}</li>`).join('')}</ul>`;
+          } else {
+            bodyHtml = `<div class="row placeholder">Venter på at du deler overkroppsplanen din her, så legges den inn.</div>`;
+          }
+        } else {
+          bodyHtml = `<div class="row">Ingen økt planlagt — restitusjon.</div>`;
+        }
+        div.innerHTML = `
+          <div class="day-head">
+            <div class="dow">${dow}</div>
+            <div class="summary">${summaryHtml}</div>
+            <div class="chev">▸</div>
+          </div>
+          <div class="day-body">${bodyHtml}</div>`;
+        div.querySelector('.day-head').addEventListener('click', () => div.classList.toggle('open'));
+        wrap.appendChild(div);
+      });
+    }
+
+    function renderAll(){
+      if (currentWeek < 1) currentWeek = 1;
+      if (currentWeek > TOTAL_WEEKS) currentWeek = TOTAL_WEEKS;
+      renderPhases();
+      renderWeekNav();
+      renderDays();
+    }
+
+    document.getElementById('prevWeek').addEventListener('click', () => { currentWeek--; renderAll(); });
+    document.getElementById('nextWeek').addEventListener('click', () => { currentWeek++; renderAll(); });
+
+    renderAll();
+  </script>
+</body>
+</html>
