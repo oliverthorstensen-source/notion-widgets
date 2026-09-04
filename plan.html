@@ -79,7 +79,7 @@
   <div id="days"></div>
 
   <footer>
-    <strong>Soner:</strong> Z1 0–128 · Z2 128–160 · Z3 160–175 · Z4 175–191 · Z5 191–211+ (målt, din puls-topp). Overkropp-økten viser en plassholder — send meg planen din fra den andre samtalen, så legger jeg den inn her.
+    <strong>Soner:</strong> Z1 0–128 · Z2 128–160 · Z3 160–175 · Z4 175–191 · Z5 191–211+ (målt, din puls-topp). Overkropp-øvelsene er hentet fra din egen Hevy-rutine.
   </footer>
 
   <script>
@@ -119,6 +119,19 @@
       'Wall sit eller terminal kne-ekstensjon m/ bånd — 2×30-45 sek',
     ];
 
+    const OVERKROPP = [
+      'Benkpress (stang) — oppvarming, så 3 arbeidssett tyngre (RPE 7-8,5)',
+      'Pull-up — 2 sett nært maks (RPE 9+), pull-up m/ strikk ved behov',
+      'Shoulder press (manual) — 2-3 sett (RPE 6-10)',
+      'Sittende sidehev (manual) — 1 tungt sett (RPE 10)',
+      'Iso-Lateral Low Row — 2-3 sett',
+      'Rygghev / vektet hyperextension — 2 sett',
+      'Face pull — 2 sett',
+      'Triceps rope pushdown — 2-3 sett',
+      'Bak-ryggen curl (kabel) — 2-3 sett',
+    ];
+    const OVERKROPP_LINK = 'https://hevy.com/workout/YT2KIMuZIqi';
+
     function sessionFor(dow, weekNum){
       const phase = phaseForWeek(weekNum);
       const wk = weeklyTarget(weekNum);
@@ -141,7 +154,7 @@
         case 'Tirs': return {type:'løp', title:'Løp, rolig', km:easyKm, pace:paceByPhase.easy, sone:soneByPhase.easy};
         case 'Ons': return {type:'hvile', title:'Hvile'};
         case 'Tors': return {type:'løp', title:'Løp, kvalitet', km:qualKm, pace:paceByPhase.qual, sone:soneByPhase.qual};
-        case 'Fre': return {type:'styrke', title:'Styrke — overkropp', detail:{placeholder:true}};
+        case 'Fre': return {type:'styrke', title:'Styrke — overkropp', detail:{exercises:OVERKROPP, link:OVERKROPP_LINK}};
         case 'Lør': return {type:'hvile', title:'Hvile'};
         case 'Søn': return {type:'løp', title:'Løp, langtur', km:longKm, pace:paceByPhase.long, sone:soneByPhase.long};
       }
@@ -193,6 +206,9 @@
         } else if (s.type === 'styrke') {
           if (s.detail.exercises) {
             bodyHtml = `<div class="row"><b>Øvelser:</b></div><ul>${s.detail.exercises.map(e=>`<li>${e}</li>`).join('')}</ul>`;
+            if (s.detail.link) {
+              bodyHtml += `<div class="row" style="margin-top:8px;"><a href="${s.detail.link}" target="_blank" style="color:var(--accent);">Se full logg med vekter i Hevy →</a></div>`;
+            }
           } else {
             bodyHtml = `<div class="row placeholder">Venter på at du deler overkroppsplanen din her, så legges den inn.</div>`;
           }
