@@ -49,7 +49,7 @@
 </style>
 </head>
 <body>
-  <h2>Fremdrift mot planen <span class="tag plan">forslag, ikke fasit</span></h2>
+  <h2>Fremdrift mot planen <span class="tag plan">forslag, ikke fasit</span> <span class="tag malt" id="liveTag" style="display:none;">live</span></h2>
   <div class="hint">Egen progressiv opptrapping bygget for deg — ikke et program fra en coach. Juster gjerne antakelsene i bunnen om noe ikke stemmer.</div>
 
   <div class="group-label">Faktisk, forrige 7 dager <span class="tag malt" style="margin-left:0;">målt</span></div>
@@ -86,14 +86,18 @@
   </div>
 
   <footer>
-    <strong>Antakelser i planen:</strong> Start 31. aug 2026, ~15 km/uke i starten, +8 %/uke, tak på 42 km/uke, nedtrapping hver 4. uke og de siste 3 ukene før løp. Antatt løpsdato: <strong>midt i mai 2027</strong> (ukjent eksakt dato — si ifra hvis du har den faktiske). "Km løpt forrige uke" og "styrkeøkter" er en oppdatert snapshot fra Strava, ikke live.
+    <strong>Antakelser i planen:</strong> Start 31. aug 2026, ~15 km/uke i starten, +8 %/uke, tak på 42 km/uke, nedtrapping hver 4. uke og de siste 3 ukene før løp. Antatt løpsdato: <strong>midt i mai 2027</strong> (ukjent eksakt dato — si ifra hvis du har den faktiske). "Km løpt forrige uke" og "styrkeøkter" hentes live fra Notion ved sidelasting — faller tilbake til siste kjente snapshot om henting feiler.
   </footer>
 
   <script>
-    // --- ekte, målte tall (oppdateres manuelt ved Strava-synk) ---
-    const ACTUAL_RUN_KM_LAST_7D = 9.2;
-    const ACTUAL_STRENGTH_LAST_7D = 0; // Hevy→Strava-synken har vært stille siden juli — se treningslogg
-    const CUMULATIVE_ACTUAL_KM = 9.2; // km løpt siden programstart (31. aug)
+    // Henter ferske tall fra Notion via en liten Cloudflare Worker-proxy.
+    // Faller tilbake til siste kjente snapshot (satt manuelt) om henting feiler,
+    // slik at widgeten aldri vises tom eller knekker.
+    const WORKER_URL = 'https://helse-widgets.oliver-thorstensen.workers.dev/stats';
+
+    let ACTUAL_RUN_KM_LAST_7D = 9.2;
+    let ACTUAL_STRENGTH_LAST_7D = 0;
+    let CUMULATIVE_ACTUAL_KM = 9.2;
 
     // --- plan-parametre ---
     const START = new Date(2026, 7, 31); // 31. aug 2026 (måned er 0-indeksert)
@@ -124,28 +128,43 @@
       return total;
     }
 
-    const today = new Date();
-    const tomorrow = new Date(today.getTime() + 24*60*60*1000);
+    function render(){
+      const today = new Date();
+      const tomorrow = new Date(today.getTime() + 24*60*60*1000);
 
-    document.getElementById('actualRunKm').innerHTML = `${ACTUAL_RUN_KM_LAST_7D.toFixed(1)} <small>km</small>`;
-    document.getElementById('actualStrength').innerHTML = `${ACTUAL_STRENGTH_LAST_7D} <small>økter</small>`;
-    document.getElementById('plannedWeek').innerHTML = `${plannedKmOver(7, tomorrow).toFixed(1)} <small>km</small>`;
-    document.getElementById('plannedMonth').innerHTML = `${plannedKmOver(30, tomorrow).toFixed(1)} <small>km</small>`;
-    document.getElementById('planned6mo').innerHTML = `${plannedKmOver(182, tomorrow).toFixed(1)} <small>km</small>`;
+      document.getElementById('actualRunKm').innerHTML = `${ACTUAL_RUN_KM_LAST_7D.toFixed(1)} <small>km</small>`;
+      document.getElementById('actualStrength').innerHTML = `${ACTUAL_STRENGTH_LAST_7D} <small>økter</small>`;
+      document.getElementById('plannedWeek').innerHTML = `${plannedKmOver(7, tomorrow).toFixed(1)} <small>km</small>`;
+      document.getElementById('plannedMonth').innerHTML = `${plannedKmOver(30, tomorrow).toFixed(1)} <small>km</small>`;
+      document.getElementById('planned6mo').innerHTML = `${plannedKmOver(182, tomorrow).toFixed(1)} <small>km</small>`;
 
-    const daysElapsed = Math.max(1, Math.round((today-START)/(1000*60*60*24)) + 1);
-    const plannedToDate = plannedKmOver(daysElapsed, START);
-    const delta = CUMULATIVE_ACTUAL_KM - plannedToDate;
+      const daysElapsed = Math.max(1, Math.round((today-START)/(1000*60*60*24)) + 1);
+      const plannedToDate = plannedKmOver(daysElapsed, START);
+      const delta = CUMULATIVE_ACTUAL_KM - plannedToDate;
 
-    const badge = document.getElementById('statusBadge');
-    const text = document.getElementById('statusText');
-    if (delta >= 0) {
-      badge.className = 'badge ahead';
-      text.innerHTML = `<strong>Foran planen</strong> — ${delta.toFixed(1)} km mer enn planlagt siden 31. aug.`;
-    } else {
-      badge.className = 'badge behind';
-      text.innerHTML = `<strong>Litt bak planen</strong> — ${Math.abs(delta).toFixed(1)} km mindre enn planlagt siden 31. aug (tidlig i løpet, ingen grunn til panikk).`;
+      const badge = document.getElementById('statusBadge');
+      const text = document.getElementById('statusText');
+      if (delta >= 0) {
+        badge.className = 'badge ahead';
+        text.innerHTML = `<strong>Foran planen</strong> — ${delta.toFixed(1)} km mer enn planlagt siden 31. aug.`;
+      } else {
+        badge.className = 'badge behind';
+        text.innerHTML = `<strong>Litt bak planen</strong> — ${Math.abs(delta).toFixed(1)} km mindre enn planlagt siden 31. aug (tidlig i løpet, ingen grunn til panikk).`;
+      }
     }
+
+    render(); // vis snapshot-tallene med én gang, ikke la widgeten stå tom mens vi henter
+
+    fetch(WORKER_URL, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('http '+r.status)))
+      .then(d => {
+        if (typeof d.actual_run_km_7d === 'number') ACTUAL_RUN_KM_LAST_7D = d.actual_run_km_7d;
+        if (typeof d.actual_strength_7d === 'number') ACTUAL_STRENGTH_LAST_7D = d.actual_strength_7d;
+        if (typeof d.cumulative_actual_km === 'number') CUMULATIVE_ACTUAL_KM = d.cumulative_actual_km;
+        document.getElementById('liveTag').style.display = 'inline-flex';
+        render();
+      })
+      .catch(() => { /* fortsetter å vise snapshot-tallene over, uten feilmelding i UI */ });
   </script>
 </body>
 </html>

@@ -49,7 +49,7 @@
 </style>
 </head>
 <body>
-  <h2>10K-prognose over tid <span class="tag anslag">anslag</span></h2>
+  <h2>10K-prognose over tid <span class="tag anslag">anslag</span> <span class="tag malt" id="liveTag" style="display:none;">live</span></h2>
   <div class="hint">Hvert punkt er en logget løpetur, omregnet til tilsvarende 10K-tid med Riegel-formelen — ikke faktisk løpt 10K.</div>
 
   <div class="stats">
@@ -78,9 +78,11 @@
   </footer>
 
   <script>
-    // Ekte, loggførte økter (Strava) omregnet til 10K-anslag med Riegel.
-    // Oppdateres manuelt når nye ukers data er klare (samme flyt som førte disse inn).
-    const runs = [
+    // Henter ferske økter live fra Notion via en liten Cloudflare Worker-proxy.
+    // FALLBACK_RUNS er siste kjente snapshot — brukes bare om live-henting feiler,
+    // slik at widgeten aldri vises tom.
+    const WORKER_URL = 'https://helse-widgets.oliver-thorstensen.workers.dev/stats';
+    const FALLBACK_RUNS = [
       {date:'2026-05-10', tenk:73.74},
       {date:'2026-05-15', tenk:74.78},
       {date:'2026-05-20', tenk:75.23},
@@ -96,6 +98,7 @@
       return `${mm}:${String(ss).padStart(2,'0')}`;
     }
 
+    function render(runs){
     // --- stat cards ---
     const last3 = runs.slice(-3);
     const avg3 = last3.reduce((a,r)=>a+r.tenk,0)/last3.length;
@@ -167,6 +170,19 @@
     });
 
     svg.innerHTML = svgContent;
+    } // slutt render()
+
+    render(FALLBACK_RUNS); // vis snapshot med én gang, ikke la widgeten stå tom mens vi henter
+
+    fetch(WORKER_URL, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('http '+r.status)))
+      .then(d => {
+        if (Array.isArray(d.runs) && d.runs.length >= 2) {
+          document.getElementById('liveTag').style.display = 'inline-flex';
+          render(d.runs);
+        }
+      })
+      .catch(() => { /* fortsetter å vise snapshot-tallene over, uten feilmelding i UI */ });
   </script>
 </body>
 </html>
