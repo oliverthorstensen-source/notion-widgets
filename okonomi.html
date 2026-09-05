@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Økonomi</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --bg:#0c0d14; --surface:#15161f; --surface-2:#1d1f2a; --line:#2a2c3a;
+    --text:#edeef4; --text-dim:#9497ab; --text-faint:#6b6e82;
+    --accent:#8b5cf6;
+    --good:#34d399; --warn:#fbbf24; --bad:#f43f5e;
+    --font-display:'Oswald',system-ui,sans-serif;
+    --font-body:'Manrope',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-body);
+       padding:14px;-webkit-font-smoothing:antialiased;font-size:13px;}
+
+  .head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;gap:8px;}
+  h2{font-family:var(--font-display);font-weight:600;font-size:13px;letter-spacing:.04em;
+     text-transform:uppercase;margin:0;color:var(--text-dim);}
+  .stamp{font-family:var(--font-mono);font-size:9.5px;color:var(--text-faint);letter-spacing:.04em;}
+
+  .hero{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-bottom:9px;}
+  .hero .label{font-family:var(--font-mono);font-size:9.5px;color:var(--text-dim);
+               text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;}
+  .hero .value{font-family:var(--font-mono);font-size:27px;font-weight:700;line-height:1.05;
+               font-variant-numeric:tabular-nums;}
+  .hero .value small{font-size:12px;color:var(--text-dim);font-weight:500;margin-left:4px;}
+
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+  .cell{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:9px 11px;}
+  .cell .label{font-size:11px;color:var(--text-dim);margin-bottom:3px;}
+  .cell .value{font-family:var(--font-mono);font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .cell .value small{font-size:10px;color:var(--text-dim);font-weight:500;margin-left:2px;}
+  .cell .value.tom{font-family:var(--font-body);font-size:12px;font-weight:500;color:var(--text-faint);}
+  .cell.neg .value{color:var(--bad);}
+  .cell.pos .value{color:var(--good);}
+
+  .bars{display:flex;flex-direction:column;gap:8px;}
+  .row .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;margin-bottom:4px;}
+  .row .name{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .row .amt{font-family:var(--font-mono);color:var(--text-dim);font-variant-numeric:tabular-nums;flex:none;}
+  .track{height:6px;border-radius:100px;background:var(--surface-2);overflow:hidden;}
+  .fill{height:100%;border-radius:100px;background:var(--accent);}
+  .fill.over{background:var(--bad);}
+  .fill.nesten{background:var(--warn);}
+
+  .list{display:flex;flex-direction:column;}
+  .item{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+        padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px;}
+  .item:last-child{border-bottom:none;}
+  .item .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .item .amt{font-family:var(--font-mono);font-variant-numeric:tabular-nums;flex:none;}
+  .item .sub{font-family:var(--font-mono);font-size:9.5px;color:var(--text-faint);}
+
+  .tom-melding{color:var(--text-faint);font-size:12px;line-height:1.5;
+               background:var(--surface);border:1px dashed var(--line);border-radius:9px;padding:11px 13px;}
+  .feil{color:var(--bad);font-size:12px;}
+</style>
+</head>
+<body>
+  <div class="head">
+    <h2 id="tittel">Økonomi</h2>
+    <span class="stamp" id="stamp"></span>
+  </div>
+  <div id="innhold" class="tom-melding">Henter …</div>
+
+<script>
+const WORKER = 'https://helse-widgets.oliver-thorstensen.workers.dev/finance-summary';
+const panel = (new URLSearchParams(location.search).get('panel') || 'netto').toLowerCase();
+
+const kr = n => Math.round(n).toLocaleString('nb-NO');
+const el = id => document.getElementById(id);
+
+// En verdi på 0 kan bety "ingenting registrert" eller "faktisk null". Vi skiller
+// på det: er lista tom, sier vi det med ord i stedet for å vise et falskt tall.
+function tall(verdi, harData) {
+  if (!harData) return '<span class="value tom">ikke lagt inn</span>';
+  return `<span class="value">${kr(verdi)} <small>kr</small></span>`;
+}
+
+const paneler = {
+  netto(d) {
+    el('tittel').textContent = 'Netto formue';
+    const harNoe = (d.fond || []).length || (d.kontoer || []).length
+                 || (d.eiendeler_list || []).length || (d.gjeld || []).length;
+    return `
+      <div class="hero">
+        <div class="label">Netto formue</div>
+        <div class="value">${kr(d.netto_formue)} <small>kr</small></div>
+      </div>
+      <div class="grid">
+        <div class="cell"><div class="label">Fond</div>${tall(d.fond_sum, (d.fond || []).length)}</div>
+        <div class="cell"><div class="label">Kontoer</div>${tall(d.kontoer_saldo_sum, (d.kontoer || []).length)}</div>
+        <div class="cell"><div class="label">Eiendeler</div>${tall(d.eiendeler_sum, (d.eiendeler_list || []).length)}</div>
+        <div class="cell neg"><div class="label">Gjeld</div>${tall(d.gjeld_sum, (d.gjeld || []).length)}</div>
+      </div>
+      ${harNoe ? '' : '<div class="tom-melding" style="margin-top:9px;">Ingenting registrert ennå.</div>'}`;
+  },
+
+  maaned(d) {
+    el('tittel').textContent = 'Siste 30 dager';
+    const s = d.siste30 || {};
+    const netto = s.netto || 0;
+    return `
+      <div class="hero">
+        <div class="label">Brukt siste 30 dager</div>
+        <div class="value">${kr(s.utgifter || 0)} <small>kr</small></div>
+      </div>
+      <div class="grid">
+        <div class="cell pos"><div class="label">Inn</div>${tall(s.inntekt || 0, true)}</div>
+        <div class="cell ${netto < 0 ? 'neg' : 'pos'}"><div class="label">Netto</div>${tall(netto, true)}</div>
+        <div class="cell"><div class="label">Abonnementer / mnd</div>${tall(d.abonnementer_mnd_sum, (d.abonnementer || []).length)}</div>
+        <div class="cell"><div class="label">Denne måneden</div>${tall(d.mnd_utgifter, true)}</div>
+      </div>`;
+  },
+
+  fordeling(d) {
+    el('tittel').textContent = 'Hvor pengene går';
+    const f = ((d.siste30 || {}).fordeling || []).slice(0, 8);
+    if (!f.length) return '<div class="tom-melding">Ingen utgifter registrert de siste 30 dagene.</div>';
+    const maks = f[0].sum || 1;
+    return '<div class="bars">' + f.map(r => `
+      <div class="row">
+        <div class="top"><span class="name">${r.kategori}</span><span class="amt">${kr(r.sum)} kr</span></div>
+        <div class="track"><div class="fill" style="width:${Math.max(2, Math.round(r.sum / maks * 100))}%"></div></div>
+      </div>`).join('') + '</div>';
+  },
+
+  budsjett(d) {
+    el('tittel').textContent = 'Budsjett';
+    const b = d.budsjetter || [];
+    if (!b.length) return '<div class="tom-melding">Ingen kategorier har fått et månedsbudsjett. Sett «Månedsbudsjett (kr)» i Kategorier for å se fremdrift her.</div>';
+    return '<div class="bars">' + b.map(r => {
+      const pst = r.budsjett > 0 ? r.brukt / r.budsjett * 100 : 0;
+      const klasse = pst > 100 ? 'over' : (pst > 80 ? 'nesten' : '');
+      return `
+      <div class="row">
+        <div class="top"><span class="name">${r.kategori}</span><span class="amt">${kr(r.brukt)} / ${kr(r.budsjett)} kr</span></div>
+        <div class="track"><div class="fill ${klasse}" style="width:${Math.min(100, Math.round(pst))}%"></div></div>
+      </div>`;
+    }).join('') + '</div>';
+  },
+
+  fond(d) {
+    el('tittel').textContent = 'Fond';
+    const f = d.fond || [];
+    if (!f.length) return '<div class="tom-melding">Ingen fond registrert.</div>';
+    return `
+      <div class="hero">
+        <div class="label">Samlet verdi</div>
+        <div class="value">${kr(d.fond_sum)} <small>kr</small></div>
+      </div>
+      <div class="list">` + f.map(x => `
+        <div class="item">
+          <span class="name">${x.navn}</span>
+          <span class="amt">${kr(x.verdi)} <span class="sub">kr</span></span>
+        </div>`).join('') + '</div>';
+  },
+};
+
+fetch(WORKER, { cache: 'no-store' })
+  .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+  .then(d => {
+    const bygg = paneler[panel] || paneler.netto;
+    el('innhold').className = '';
+    el('innhold').innerHTML = bygg(d);
+    const t = new Date(d.generated_at);
+    el('stamp').textContent = isNaN(t) ? '' :
+      t.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+  })
+  .catch(e => {
+    el('innhold').className = 'tom-melding';
+    el('innhold').innerHTML = `<span class="feil">Fikk ikke kontakt med Workeren.</span><br>${e.message}`;
+  });
+</script>
+</body>
+</html>
