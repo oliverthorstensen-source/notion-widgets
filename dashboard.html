@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skrivebord</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --bg:#0a0b11; --surface:#14151f; --surface-2:#1c1e2a; --line:#2a2c3a;
+    --text:#edeef4; --text-dim:#9497ab;
+    --accent:#8b5cf6; --accent-soft:#8b5cf61a;
+    --accent2:#ff6a3d; --accent2-soft:#ff6a3d1a;
+    --good:#34d399; --good-soft:#34d3991a;
+    --warn:#fbbf24; --warn-soft:#fbbf241a;
+    --bad:#f43f5e; --bad-soft:#f43f5e1a;
+    --font-display:'Oswald',system-ui,sans-serif;
+    --font-body:'Manrope',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);color:var(--text);font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;padding:22px;min-height:100vh;
+  }
+  a{color:inherit;}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+  header h1{font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:.01em;margin:0;}
+  header .clock{font-family:var(--font-mono);font-size:13px;color:var(--text-dim);}
+
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;max-width:1400px;margin:0 auto;}
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:18px 20px;min-width:0;
+  }
+  .card h2{font-family:var(--font-display);font-weight:600;font-size:14px;letter-spacing:.02em;margin:0 0 3px;display:flex;align-items:center;gap:8px;}
+  .card .sub{color:var(--text-dim);font-size:12px;margin-bottom:12px;line-height:1.5;}
+
+  .span-4{grid-column:span 4;}
+  .span-5{grid-column:span 5;}
+  .span-6{grid-column:span 6;}
+  .span-7{grid-column:span 7;}
+  .span-8{grid-column:span 8;}
+  .span-12{grid-column:span 12;}
+  @media (max-width: 860px){
+    .span-4,.span-5,.span-6,.span-7,.span-8{grid-column:span 12;}
+  }
+
+  .tag{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10px;letter-spacing:.05em;padding:2px 8px;border-radius:100px;}
+  .tag.malt{color:var(--good);background:var(--good-soft);border:1px solid #34d39944;}
+  .tag.err{color:var(--bad);background:var(--bad-soft);border:1px solid #f43f5e44;}
+
+  .hero .value{font-family:var(--font-mono);font-size:32px;font-weight:700;line-height:1.1;}
+  .hero .value small{font-size:14px;color:var(--text-dim);font-weight:500;margin-left:4px;}
+  .hero .delta{font-family:var(--font-mono);font-size:12.5px;margin-top:6px;}
+  .hero .delta.good{color:var(--good);}
+  .hero .delta.bad{color:var(--bad);}
+
+  .stats-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .stat{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;flex:1;min-width:110px;}
+  .stat .label{font-size:10.5px;color:var(--text-dim);margin-bottom:4px;}
+  .stat .value{font-family:var(--font-mono);font-size:17px;font-weight:700;}
+  .stat .value small{font-size:11px;color:var(--text-dim);font-weight:500;margin-left:2px;}
+
+  svg{width:100%;height:auto;display:block;overflow:visible;}
+  .grid-line{stroke:var(--line);stroke-width:1;}
+  .axis-label{fill:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:9px;}
+  .data-line{fill:none;stroke:var(--accent);stroke-width:2;}
+  .data-dot{fill:var(--accent);stroke:var(--surface);stroke-width:2;}
+  .target-line{stroke:var(--accent2);stroke-width:1.5;stroke-dasharray:4 4;}
+  .target-label{fill:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;}
+
+  .rows{display:flex;flex-direction:column;}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13px;}
+  .rows .row:first-child{border-top:none;}
+  .row .name{display:flex;align-items:center;gap:8px;min-width:0;}
+  .row .name span.dim{color:var(--text-dim);font-size:11px;}
+  .row .amt{font-family:var(--font-mono);white-space:nowrap;}
+  .row .amt.bad{color:var(--bad);}
+  .row .amt.good{color:var(--good);}
+  .pill{font-family:var(--font-mono);font-size:10px;padding:2px 7px;border-radius:100px;white-space:nowrap;}
+  .pill.soon{background:var(--warn-soft);color:var(--warn);border:1px solid #fbbf2444;}
+  .pill.ok{background:var(--good-soft);color:var(--good);border:1px solid #34d39944;}
+  .pill.over{background:var(--bad-soft);color:var(--bad);border:1px solid #f43f5e44;}
+
+  .bars{display:flex;flex-direction:column;gap:10px;}
+  .bar-row .top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;}
+  .bar-row .top .amt{font-family:var(--font-mono);color:var(--text-dim);}
+  .bar-track{height:7px;border-radius:100px;background:var(--surface-2);overflow:hidden;}
+  .bar-fill{height:100%;border-radius:100px;background:var(--accent);}
+  .bar-fill.over{background:var(--bad);}
+  .bar-fill.warn{background:var(--warn);}
+
+  .empty{color:var(--text-dim);font-size:12.5px;padding:6px 0;}
+
+  footer{max-width:1400px;margin:18px auto 0;color:var(--text-dim);font-size:11px;text-align:center;}
+</style>
+</head>
+<body>
+  <header>
+    <h1>🖥️ Skrivebord</h1>
+    <div class="clock" id="clock">–</div>
+  </header>
+
+  <div class="grid">
+
+    <div class="card span-4 hero">
+      <h2>Netto formue <span class="tag malt" id="tagFinance" style="display:none;">live</span></h2>
+      <div class="sub">Kontoer + eiendeler − gjeld, oppdatert manuelt av deg.</div>
+      <div class="value" id="nettoFormue">–</div>
+    </div>
+
+    <div class="card span-4 hero">
+      <h2>Denne måneden</h2>
+      <div class="sub">Brukt vs. budsjett satt i Kategorier.</div>
+      <div class="value" id="mndUtgifter">–</div>
+      <div class="delta" id="mndDelta"></div>
+    </div>
+
+    <div class="card span-4 hero">
+      <h2>10K-anslag <span class="tag malt" id="tagHelse" style="display:none;">live</span></h2>
+      <div class="sub">Nyeste logget løpetur, omregnet med Riegel.</div>
+      <div class="value" id="latest10k">–</div>
+      <div class="delta" id="deltaRun"></div>
+    </div>
+
+    <div class="card span-5">
+      <h2>Ukens trening</h2>
+      <div class="sub">Siste 7 dager, hentet fra Treningslogg.</div>
+      <div class="stats-row">
+        <div class="stat"><div class="label">Km løpt</div><div class="value" id="runKm">–</div></div>
+        <div class="stat"><div class="label">Styrkeøkter</div><div class="value" id="strength">–</div></div>
+        <div class="stat"><div class="label">Km totalt</div><div class="value" id="cumKm">–</div></div>
+      </div>
+    </div>
+
+    <div class="card span-7">
+      <h2>10K-prognose over tid</h2>
+      <div class="sub">Hver logget løpetur, omregnet til tilsvarende 10K-tid.</div>
+      <svg id="chart" viewBox="0 0 640 190" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+
+    <div class="card span-6">
+      <h2>Budsjett per kategori</h2>
+      <div class="sub">Denne måneden, kun kategorier med budsjett satt.</div>
+      <div class="bars" id="budsjettBars"><div class="empty">Laster …</div></div>
+    </div>
+
+    <div class="card span-6">
+      <h2>Kontoer &amp; gjeld</h2>
+      <div class="sub">Manuelt oppdatert i Notion.</div>
+      <div class="rows" id="kontoerGjeldRows"><div class="empty">Laster …</div></div>
+    </div>
+
+    <div class="card span-6">
+      <h2>Abonnementer</h2>
+      <div class="sub">Sortert etter neste forfall.</div>
+      <div class="rows" id="abonnementerRows"><div class="empty">Laster …</div></div>
+    </div>
+
+    <div class="card span-6">
+      <h2>Eiendeler &amp; mål</h2>
+      <div class="sub">Manuelt oppdatert i Notion.</div>
+      <div class="rows" id="eiendelerMalRows"><div class="empty">Laster …</div></div>
+    </div>
+
+  </div>
+
+  <footer id="footerNote">Henter data …</footer>
+
+  <script>
+    const STATS_URL = 'https://helse-widgets.oliver-thorstensen.workers.dev/stats';
+    const FINANCE_URL = 'https://helse-widgets.oliver-thorstensen.workers.dev/finance-summary';
+
+    function fmtKr(n){
+      if (typeof n !== 'number') return '–';
+      return Math.round(n).toLocaleString('nb-NO');
+    }
+    function fmtMin(m){
+      if (typeof m !== 'number') return '–';
+      const mm = Math.floor(m);
+      const ss = Math.round((m-mm)*60);
+      return `${mm}:${String(ss).padStart(2,'0')}`;
+    }
+    function daysUntil(dateStr){
+      if (!dateStr) return null;
+      const d = new Date(dateStr);
+      const now = new Date();
+      return Math.ceil((d - now) / (1000*60*60*24));
+    }
+
+    function tickClock(){
+      const now = new Date();
+      document.getElementById('clock').textContent = now.toLocaleString('nb-NO', {
+        weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+      });
+    }
+    tickClock();
+    setInterval(tickClock, 30000);
+
+    // ---------- Helse ----------
+    fetch(STATS_URL, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('http '+r.status)))
+      .then(d => {
+        document.getElementById('tagHelse').style.display = 'inline-flex';
+        document.getElementById('runKm').innerHTML = `${(d.actual_run_km_7d ?? 0).toFixed(1)} <small>km</small>`;
+        document.getElementById('strength').innerHTML = `${d.actual_strength_7d ?? 0} <small>økter</small>`;
+        document.getElementById('cumKm').innerHTML = `${(d.cumulative_actual_km ?? 0).toFixed(1)} <small>km</small>`;
+
+        const runs = Array.isArray(d.runs) ? d.runs : [];
+        if (runs.length > 0) {
+          const latest = runs[runs.length-1];
+          document.getElementById('latest10k').innerHTML = `${fmtMin(latest.tenk)} <small>min</small>`;
+          if (runs.length >= 2) {
+            const prev = runs[runs.length-2];
+            const diff = latest.tenk - prev.tenk;
+            const el = document.getElementById('deltaRun');
+            el.textContent = diff <= 0
+              ? `${fmtMin(Math.abs(diff))} min raskere enn forrige`
+              : `${fmtMin(diff)} min tregere enn forrige`;
+            el.className = 'delta ' + (diff <= 0 ? 'good' : 'bad');
+          }
+        } else {
+          document.getElementById('latest10k').innerHTML = `<small>ingen økter ennå</small>`;
+        }
+        renderChart(runs);
+      })
+      .catch(() => {
+        document.getElementById('runKm').innerHTML = `<small>feil</small>`;
+        document.getElementById('strength').innerHTML = `<small>feil</small>`;
+        document.getElementById('cumKm').innerHTML = `<small>feil</small>`;
+        document.getElementById('latest10k').innerHTML = `<small>feil ved henting</small>`;
+      });
+
+    function renderChart(runs){
+      const svg = document.getElementById('chart');
+      if (runs.length < 2) {
+        svg.innerHTML = '';
+        svg.parentElement.querySelector('.sub').textContent = 'For få økter logget ennå til å tegne en trend.';
+        return;
+      }
+      const TARGET = 40;
+      const W = 640, H = 190, padL = 34, padR = 14, padT = 14, padB = 22;
+      const plotW = W - padL - padR, plotH = H - padT - padB;
+
+      const ys = runs.map(r => r.tenk);
+      const base = new Date(runs[0].date).getTime();
+      const xs = runs.map(r => (new Date(r.date).getTime()-base)/(1000*60*60*24));
+      const allY = ys.concat([TARGET]);
+      const yMin = Math.min(...allY) - 4, yMax = Math.max(...allY) + 4;
+      const xMin = Math.min(...xs), xMax = Math.max(...xs);
+      const xSpan = Math.max(xMax-xMin, 1);
+
+      const px = x => padL + ((x-xMin)/xSpan)*plotW;
+      const py = y => padT + (1-(y-yMin)/(yMax-yMin))*plotH;
+
+      let s = '';
+      const gridStep = 10;
+      for (let g = Math.ceil(yMin/gridStep)*gridStep; g <= yMax; g += gridStep) {
+        s += `<line class="grid-line" x1="${padL}" y1="${py(g)}" x2="${W-padR}" y2="${py(g)}"/>`;
+        s += `<text class="axis-label" x="${padL-6}" y="${py(g)+3}" text-anchor="end">${g}</text>`;
+      }
+      s += `<line class="target-line" x1="${padL}" y1="${py(TARGET)}" x2="${W-padR}" y2="${py(TARGET)}"/>`;
+      s += `<text class="target-label" x="${W-padR}" y="${py(TARGET)-5}" text-anchor="end">SUB-40</text>`;
+      const pts = runs.map(r => `${px((new Date(r.date).getTime()-base)/(1000*60*60*24))},${py(r.tenk)}`).join(' ');
+      s += `<polyline class="data-line" points="${pts}"/>`;
+      runs.forEach(r => {
+        const x = px((new Date(r.date).getTime()-base)/(1000*60*60*24));
+        s += `<circle class="data-dot" cx="${x}" cy="${py(r.tenk)}" r="3.5"/>`;
+      });
+      svg.innerHTML = s;
+    }
+
+    // ---------- Finans ----------
+    fetch(FINANCE_URL, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('http '+r.status)))
+      .then(d => {
+        document.getElementById('tagFinance').style.display = 'inline-flex';
+        document.getElementById('nettoFormue').innerHTML = `${fmtKr(d.netto_formue)} <small>kr</small>`;
+        document.getElementById('mndUtgifter').innerHTML = `${fmtKr(d.mnd_utgifter)} <small>kr</small>`;
+        if (d.mnd_budsjett_total > 0) {
+          const delta = d.mnd_budsjett_total - d.mnd_utgifter;
+          const el = document.getElementById('mndDelta');
+          el.textContent = delta >= 0 ? `${fmtKr(delta)} kr igjen av budsjettet` : `${fmtKr(Math.abs(delta))} kr over budsjett`;
+          el.className = 'delta ' + (delta >= 0 ? 'good' : 'bad');
+        } else {
+          document.getElementById('mndDelta').textContent = 'ingen budsjettgrense satt';
+        }
+
+        // Budsjett-bars
+        const barsEl = document.getElementById('budsjettBars');
+        if (Array.isArray(d.budsjetter) && d.budsjetter.length > 0) {
+          barsEl.innerHTML = d.budsjetter.map(b => {
+            const overPct = b.budsjett > 0 ? (b.brukt / b.budsjett * 100) : 0;
+            const pct = Math.min(100, Math.round(overPct));
+            const cls = overPct > 100 ? 'over' : (overPct > 80 ? 'warn' : '');
+            return `<div class="bar-row">
+              <div class="top"><span>${b.kategori}</span><span class="amt">${fmtKr(b.brukt)} / ${fmtKr(b.budsjett)} kr</span></div>
+              <div class="bar-track"><div class="bar-fill ${cls}" style="width:${pct}%"></div></div>
+            </div>`;
+          }).join('');
+        } else {
+          barsEl.innerHTML = '<div class="empty">Ingen kategorier har fått et månedsbudsjett ennå.</div>';
+        }
+
+        // Kontoer & gjeld
+        const kgEl = document.getElementById('kontoerGjeldRows');
+        let kgHtml = '';
+        if (Array.isArray(d.kontoer) && d.kontoer.length > 0) {
+          kgHtml += d.kontoer.map(k => `<div class="row"><div class="name">${k.navn} <span class="dim">${k.type||''}</span></div><div class="amt">${fmtKr(k.saldo)} kr</div></div>`).join('');
+        }
+        if (Array.isArray(d.gjeld) && d.gjeld.length > 0) {
+          kgHtml += d.gjeld.map(g => `<div class="row"><div class="name">${g.navn} <span class="dim">gjeld</span></div><div class="amt bad">−${fmtKr(g.gjenstaende)} kr</div></div>`).join('');
+        }
+        kgEl.innerHTML = kgHtml || '<div class="empty">Ingen kontoer eller gjeld lagt inn ennå.</div>';
+
+        // Abonnementer, sortert på forfall
+        const abEl = document.getElementById('abonnementerRows');
+        if (Array.isArray(d.abonnementer) && d.abonnementer.length > 0) {
+          const sorted = [...d.abonnementer].sort((a,b) => {
+            const da = a.neste_forfall ? new Date(a.neste_forfall).getTime() : Infinity;
+            const db = b.neste_forfall ? new Date(b.neste_forfall).getTime() : Infinity;
+            return da - db;
+          });
+          abEl.innerHTML = sorted.map(a => {
+            const days = daysUntil(a.neste_forfall);
+            let pill = '';
+            if (days !== null) {
+              if (days < 0) pill = `<span class="pill over">forfalt</span>`;
+              else if (days <= 7) pill = `<span class="pill soon">${days}d</span>`;
+              else pill = `<span class="pill ok">${days}d</span>`;
+            }
+            return `<div class="row"><div class="name">${a.navn} <span class="dim">${fmtKr(a.belop)} kr/${a.frekvens==='Årlig'?'år':'mnd'}</span></div>${pill}</div>`;
+          }).join('');
+        } else {
+          abEl.innerHTML = '<div class="empty">Ingen abonnementer lagt inn ennå.</div>';
+        }
+
+        // Eiendeler & mål
+        const emEl = document.getElementById('eiendelerMalRows');
+        let emHtml = '';
+        if (Array.isArray(d.eiendeler_list) && d.eiendeler_list.length > 0) {
+          emHtml += d.eiendeler_list.map(e => `<div class="row"><div class="name">${e.navn}</div><div class="amt">${fmtKr(e.verdi)} kr</div></div>`).join('');
+        }
+        emEl.innerHTML = emHtml || `<div class="empty">Sum eiendeler: ${fmtKr(d.eiendeler_sum)} kr</div>`;
+
+        document.getElementById('footerNote').textContent =
+          `Helse oppdatert ${new Date().toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})} · Økonomi oppdatert samtidig · alt hentet live fra Notion via Workeren`;
+      })
+      .catch(() => {
+        document.getElementById('nettoFormue').innerHTML = `<small>feil ved henting</small>`;
+        document.getElementById('footerNote').innerHTML = `<span class="tag err">feil</span> Klarte ikke hente økonomidata akkurat nå.`;
+      });
+  </script>
+</body>
+</html>
