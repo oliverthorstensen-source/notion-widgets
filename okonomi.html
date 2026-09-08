@@ -135,6 +135,20 @@ const paneler = {
       </div>`).join('') + '</div>';
   },
 
+  mat(d) {
+    el('tittel').textContent = 'Hva maten går til';
+    const f = ((d.siste30 || {}).mat_fordeling || []).slice(0, 8);
+    if (!f.length) return '<div class="tom-melding">Ingen matkjøp de siste 30 dagene.</div>';
+    const maks = f[0].sum || 1;
+    const uspes = f.find(r => r.gruppe === 'Uspesifisert');
+    return '<div class="bars">' + f.map(r => `
+      <div class="row">
+        <div class="top"><span class="name">${r.gruppe}</span><span class="amt">${kr(r.sum)} kr</span></div>
+        <div class="track"><div class="fill" style="width:${Math.max(2, Math.round(r.sum / maks * 100))}%"></div></div>
+      </div>`).join('') + '</div>'
+      + (uspes ? '<div class="fotnote">«Uspesifisert» er handler uten kvittering — banken ser bare totalen. Ta bilde av kvitteringen for å dele den opp.</div>' : '');
+  },
+
   budsjett(d) {
     el('tittel').textContent = 'Budsjett';
     const b = d.budsjetter || [];
