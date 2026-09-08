@@ -59,6 +59,7 @@
   .item .amt{font-family:var(--font-mono);font-variant-numeric:tabular-nums;flex:none;}
   .item .sub{font-family:var(--font-mono);font-size:9.5px;color:var(--text-faint);}
 
+  .fotnote{color:var(--text-faint);font-size:11px;line-height:1.45;margin-top:8px;}
   .tom-melding{color:var(--text-faint);font-size:12px;line-height:1.5;
                background:var(--surface);border:1px dashed var(--line);border-radius:9px;padding:11px 13px;}
   .feil{color:var(--bad);font-size:12px;}
@@ -101,6 +102,7 @@ const paneler = {
         <div class="cell"><div class="label">Eiendeler</div>${tall(d.eiendeler_sum, (d.eiendeler_list || []).length)}</div>
         <div class="cell neg"><div class="label">Gjeld</div>${tall(d.gjeld_sum, (d.gjeld || []).length)}</div>
       </div>
+      ${d.gjeld_utelatt_sum > 0 ? `<div class="fotnote">+ ${kr(d.gjeld_utelatt_sum)} kr fremtidig gjeld står utenfor — merket «utelat» i Gjeld.</div>` : ''}
       ${harNoe ? '' : '<div class="tom-melding" style="margin-top:9px;">Ingenting registrert ennå.</div>'}`;
   },
 
@@ -165,20 +167,38 @@ const paneler = {
   },
 };
 
-fetch(WORKER, { cache: 'no-store' })
-  .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
-  .then(d => {
-    const bygg = paneler[panel] || paneler.netto;
-    el('innhold').className = '';
-    el('innhold').innerHTML = bygg(d);
-    const t = new Date(d.generated_at);
-    el('stamp').textContent = isNaN(t) ? '' :
-      t.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
-  })
-  .catch(e => {
-    el('innhold').className = 'tom-melding';
-    el('innhold').innerHTML = `<span class="feil">Fikk ikke kontakt med Workeren.</span><br>${e.message}`;
-  });
+// Notion holder rammen i live i bakgrunnen, så en endring i databasen ville
+// ellers ikke vises før du lastet hele siden på nytt. Vi henter på nytt når
+// fanen blir synlig igjen, og hvert femte minutt mens den står fremme.
+let hentesNa = false;
+
+function last() {
+  if (hentesNa) return;
+  hentesNa = true;
+  fetch(WORKER + '?t=' + Date.now(), { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+    .then(d => {
+      const bygg = paneler[panel] || paneler.netto;
+      el('innhold').className = '';
+      el('innhold').innerHTML = bygg(d);
+      const t = new Date(d.generated_at);
+      el('stamp').textContent = isNaN(t) ? '' :
+        t.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+    })
+    .catch(e => {
+      el('innhold').className = 'tom-melding';
+      el('innhold').innerHTML = `<span class="feil">Fikk ikke kontakt med Workeren.</span><br>${e.message}`;
+    })
+    .finally(() => { hentesNa = false; });
+}
+
+last();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) last(); });
+window.addEventListener('focus', last);
+setInterval(() => { if (!document.hidden) last(); }, 300000);
+document.querySelector('.head').addEventListener('click', last);
+document.querySelector('.head').style.cursor = 'pointer';
+document.querySelector('.head').title = 'Klikk for å hente på nytt';
 </script>
 </body>
 </html>
