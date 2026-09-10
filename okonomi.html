@@ -135,6 +135,62 @@ const paneler = {
       </div>`).join('') + '</div>';
   },
 
+  inntekt(d) {
+    el('tittel').textContent = 'Inntekt';
+    const i = d.inntekt || {};
+    const h = (i.historikk || []).slice().reverse();
+    if (!h.length) return '<div class="tom-melding">Ingen inntekt registrert ennå.</div>';
+    const maks = Math.max(...h.map(m => m.sum), 1);
+    const navn = m => {
+      const [aar, mnd] = m.split('-');
+      return ['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'][Number(mnd) - 1] + ' ' + aar.slice(2);
+    };
+    const denne = i.denne_maaneden || {};
+    const kilder = Object.entries(denne.per_kilde || {});
+    return `
+      <div class="hero">
+        <div class="label">Inn denne måneden</div>
+        <div class="value">${kr(denne.sum || 0)} <small>kr</small></div>
+      </div>
+      ${kilder.length ? `<div class="list">${kilder.map(([k, v]) =>
+        `<div class="item"><span class="name">${k}</span><span class="amt">${kr(v)} <span class="sub">kr</span></span></div>`).join('')}</div>` : ''}
+      <div class="bars" style="margin-top:11px;">${h.map(m => `
+        <div class="row">
+          <div class="top"><span class="name">${navn(m.maaned)}</span><span class="amt">${m.sum ? kr(m.sum) + ' kr' : '–'}</span></div>
+          <div class="track"><div class="fill" style="width:${Math.max(1, Math.round(m.sum / maks * 100))}%"></div></div>
+        </div>`).join('')}</div>
+      <div class="fotnote">Lånekassen og lønn. Spleis med venner teller ikke — det er penger du får tilbake.${
+        i.semester_holdt_utenfor ? ` Semesterutbetalinger på ${kr(i.semester_holdt_utenfor)} kr er holdt utenfor; de går til studieavgiften.` : ''}</div>`;
+  },
+
+  plan(d) {
+    el('tittel').textContent = 'Månedsplan';
+    const i = d.inntekt || {};
+    const faste = i.faste_utgifter || [];
+    const spar = i.sparefordeling || [];
+    if (!i.grunnlag) return '<div class="tom-melding">Ingen inntekt registrert å planlegge med.</div>';
+    const restKlasse = i.rest < 0 ? 'neg' : 'pos';
+    return `
+      <div class="grid" style="grid-template-columns:1fr 1fr 1fr;">
+        <div class="cell"><div class="label">Inn</div>${tall(i.grunnlag, true)}</div>
+        <div class="cell neg"><div class="label">Faste</div>${tall(i.faste_sum, true)}</div>
+        <div class="cell ${restKlasse}"><div class="label">Til fordeling</div>${tall(i.rest, true)}</div>
+      </div>
+      ${faste.length ? `<div class="list" style="margin-top:10px;">${faste.map(f =>
+        `<div class="item"><span class="name">${f.kategori}</span><span class="amt">${kr(f.belop)} <span class="sub">kr</span></span></div>`).join('')}</div>` : ''}
+      ${spar.length ? `
+        <div class="group" style="margin-top:12px;">
+          <div class="bars">${spar.map(s => `
+            <div class="row">
+              <div class="top"><span class="name">${s.konto}<span class="sub"> ${s.andel} %</span></span><span class="amt">${kr(s.belop)} kr</span></div>
+              <div class="track"><div class="fill" style="width:${Math.min(100, s.andel)}%"></div></div>
+            </div>`).join('')}</div>
+        </div>
+        ${i.andel_sum !== 100 ? `<div class="fotnote">Prosentene summerer til ${i.andel_sum} %, ikke 100. ${i.andel_sum < 100 ? 'Resten blir stående ufordelt.' : 'Du fordeler mer enn du har.'}</div>` : ''}`
+      : '<div class="fotnote">Ingen kontoer har fått «Andel av rest (%)». Sett prosenter i Kontoer-databasen for å se fordelingen her.</div>'}
+      <div class="fotnote">Grunnlag: ${i.grunnlag_kilde}.</div>`;
+  },
+
   mat(d) {
     el('tittel').textContent = 'Hva maten går til';
     const f = ((d.siste30 || {}).mat_fordeling || []).slice(0, 8);
@@ -152,16 +208,19 @@ const paneler = {
   budsjett(d) {
     el('tittel').textContent = 'Budsjett';
     const b = d.budsjetter || [];
-    if (!b.length) return '<div class="tom-melding">Ingen kategorier har fått et månedsbudsjett. Sett «Månedsbudsjett (kr)» i Kategorier for å se fremdrift her.</div>';
+    if (!b.length) return '<div class="tom-melding">Ingen kategorier har fått budsjett. Sett «Andel av inntekt (%)» eller «Månedsbudsjett (kr)» i Kategorier.</div>';
+    const i = d.inntekt || {};
     return '<div class="bars">' + b.map(r => {
       const pst = r.budsjett > 0 ? r.brukt / r.budsjett * 100 : 0;
       const klasse = pst > 100 ? 'over' : (pst > 80 ? 'nesten' : '');
+      const merke = r.andel ? `<span class="sub"> ${r.andel} %</span>` : '';
       return `
       <div class="row">
-        <div class="top"><span class="name">${r.kategori}</span><span class="amt">${kr(r.brukt)} / ${kr(r.budsjett)} kr</span></div>
+        <div class="top"><span class="name">${r.kategori}${merke}</span><span class="amt">${kr(r.brukt)} / ${kr(r.budsjett)} kr</span></div>
         <div class="track"><div class="fill ${klasse}" style="width:${Math.min(100, Math.round(pst))}%"></div></div>
       </div>`;
-    }).join('') + '</div>';
+    }).join('') + '</div>'
+      + (i.grunnlag ? `<div class="fotnote">Prosentbudsjettene regnes av ${kr(i.grunnlag)} kr — ${i.grunnlag_kilde}. Kategorier med fast kronebeløp følger ikke inntekten.</div>` : '');
   },
 
   fond(d) {
@@ -192,7 +251,17 @@ function last() {
   fetch(WORKER + '?t=' + Date.now(), { cache: 'no-store' })
     .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
     .then(d => {
-      const bygg = paneler[panel] || paneler.netto;
+      const bygg = paneler[panel];
+      if (!bygg) {
+        // Før viste et ukjent panelnavn netto-panelet i stillhet, og da så det
+        // ut som samme widget lå to steder. Nå sier den fra i stedet.
+        el('tittel').textContent = 'Ukjent panel';
+        el('innhold').className = 'tom-melding';
+        el('innhold').innerHTML =
+          `Panelet «${panel}» finnes ikke i denne filen. Har du lastet opp nyeste okonomi.html?`
+          + `<br><br>Tilgjengelige: ${Object.keys(paneler).join(', ')}.`;
+        return;
+      }
       el('innhold').className = '';
       el('innhold').innerHTML = bygg(d);
       const t = new Date(d.generated_at);
