@@ -108,10 +108,13 @@
       return val;
     }
 
+    const HOFTE_KNE_OPPVARMING = [
+      'Lateral båndgange (monster walk) — 1×15 skritt hver vei, rolig (aktivering, ikke til utmattelse)',
+    ];
+
     const HOFTE_KNE = [
       'Bulgarian split squat — 3×8-10 per ben',
       'Ettbens hofteløft (glute bridge) — 3×12 per ben',
-      'Lateral båndgange (monster walk) — 3×15 skritt hver vei',
       'Copenhagen plank (adduktor) — 3×20-30 sek per side',
       'Step-ups — 3×10 per ben',
       'Ettbens tåhev — 3×15 per ben',
@@ -150,7 +153,7 @@
       }[phase.name];
 
       switch(dow){
-        case 'Man': return {type:'styrke', title:'Styrke — hofte/kne', detail:{exercises:HOFTE_KNE}};
+        case 'Man': return {type:'styrke', title:'Styrke — hofte/kne', detail:{warmup:HOFTE_KNE_OPPVARMING, exercises:HOFTE_KNE}};
         case 'Tirs': return {type:'løp', title:'Løp, rolig', km:easyKm, pace:paceByPhase.easy, sone:soneByPhase.easy};
         case 'Ons': return {type:'hvile', title:'Hvile'};
         case 'Tors': return {type:'løp', title:'Løp, kvalitet', km:qualKm, pace:paceByPhase.qual, sone:soneByPhase.qual};
@@ -205,7 +208,11 @@
             <div class="row"><b>Sone:</b> ${s.sone}</div>`;
         } else if (s.type === 'styrke') {
           if (s.detail.exercises) {
-            bodyHtml = `<div class="row"><b>Øvelser:</b></div><ul>${s.detail.exercises.map(e=>`<li>${e}</li>`).join('')}</ul>`;
+            bodyHtml = '';
+            if (s.detail.warmup) {
+              bodyHtml += `<div class="row"><b>Oppvarming:</b></div><ul style="margin-bottom:8px;">${s.detail.warmup.map(e=>`<li>${e}</li>`).join('')}</ul>`;
+            }
+            bodyHtml += `<div class="row"><b>Øvelser:</b></div><ul>${s.detail.exercises.map(e=>`<li>${e}</li>`).join('')}</ul>`;
             if (s.detail.link) {
               bodyHtml += `<div class="row" style="margin-top:8px;"><a href="${s.detail.link}" target="_blank" style="color:var(--accent);">Se full logg med vekter i Hevy →</a></div>`;
             }
