@@ -63,7 +63,7 @@
 </head>
 <body>
   <h2>Treningsplan — fase → uke → dag</h2>
-  <div class="hint">Klikk en fase for å hoppe dit, blad i uker, klikk en dag for å se økten. Alt er utledet av samme progressive modell som fremdrift-widgeten.</div>
+  <div class="hint">Klikk en fase for å hoppe dit, blad i uker, klikk en dag for å se økten. Volumet følger samme modell som fremdrift-widgeten, og fartene regnes ut fra siste 5 km-test.</div>
 
   <div class="phases" id="phases"></div>
   <div class="week-nav">
@@ -79,13 +79,23 @@
   <div id="days"></div>
 
   <footer>
+    <div id="paceNote" style="margin-bottom:6px;"></div>
     <strong>Soner:</strong> Z1 0–128 · Z2 128–160 · Z3 160–175 · Z4 175–191 · Z5 191–211+ (målt, din puls-topp). Overkropp-øvelsene er hentet fra din egen Hevy-rutine.
   </footer>
 
   <script>
     const START = new Date(2026, 7, 31);
     const RACE = new Date(2027, 4, 16);
-    const BASE = 15.0, GROWTH = 1.08, PEAK = 42.0;
+    // Volum: uke 1-5 er den opprinnelige modellen (historikk). Fra uke 6 er planen
+    // ankret på det som faktisk ble løpt i ukene med tre økter (~16 km), med roligere økning.
+    const OLD_BASE = 15.0, OLD_GROWTH = 1.08;
+    const REANCHOR_WEEK = 6;
+    const BASE = 16.0, GROWTH = 1.05, PEAK = 42.0;
+    const FOUR_RUNS_FROM_KM = 28;   // fra dette ukevolumet fordeles km på fire løpeøkter i stedet for tre
+    const TEST_WEEKS = [12, 16, 20, 24, 28, 32]; // 5 km-test på kvalitetsdagen (rolige uker)
+
+    // Siste 5 km-test. Alle farter i planen regnes ut fra denne — oppdater etter hver test.
+    const TEST_5K = { seconds: 29*60 + 48, date: '07.10.2026' };
     const TOTAL_WEEKS = Math.floor((RACE-START)/(1000*60*60*24*7)) + 1;
 
     const PHASES = [
@@ -103,9 +113,52 @@
       if (weeksToRace <= 1) return PEAK*0.4;
       if (weeksToRace <= 2) return PEAK*0.55;
       if (weeksToRace <= 3) return PEAK*0.7;
-      let val = Math.min(BASE*Math.pow(GROWTH, w-1), PEAK);
+      let val = w < REANCHOR_WEEK
+        ? OLD_BASE*Math.pow(OLD_GROWTH, w-1)
+        : Math.min(BASE*Math.pow(GROWTH, w-REANCHOR_WEEK), PEAK);
       if (w % 4 === 0) val *= 0.75;
       return val;
+    }
+
+    // --- farter fra siste 5 km-test (faktor × 5 km-fart, rundet til nærmeste 5 sek) ---
+    const P5 = TEST_5K.seconds / 5;
+    function fmtPace(sec){
+      const r = Math.round(sec/5)*5;
+      return `${Math.floor(r/60)}:${String(r%60).padStart(2,'0')}`;
+    }
+    function fmtTime(sec){ return `${Math.floor(sec/60)}:${String(Math.round(sec%60)).padStart(2,'0')}`; }
+    function range(lo, hi){ return `${fmtPace(P5*lo)}–${fmtPace(P5*hi)}`; }
+    const PACE = {
+      rolig:    range(1.20, 1.33),
+      terskel:  range(1.05, 1.10),
+      tiK:      range(1.04, 1.07),
+      femK:     range(0.97, 1.02),
+    };
+
+    function qualitySession(phaseName, w){
+      if (TEST_WEEKS.includes(w)) return {
+        title:'5 km-test', test:true, sone:'Z4–Z5', pace:'så fort du klarer jevnt — sikt på under ' + fmtTime(TEST_5K.seconds),
+        plan:'10–15 min rolig oppvarming, så 5 km jevnt og hardt på flatest mulig løype. Rolig nedjogg. Resultatet setter nye farter i planen.'};
+      if (phaseName === 'Grunntrening') return {
+        title:'Løp, kvalitet', sone:'Z2–Z3', pace:'strides/fartlek — kort og lekent',
+        plan:'Rolig løp med 6–8 korte drag på 20–30 sek innimellom.'};
+      if (phaseName === 'Oppbygging') return {
+        title:'Løp, terskel', sone:'Z3–Z4', pace:PACE.terskel + ' /km (terskel)',
+        plan:'3–4 × 5 min i terskelfart, 2 min rolig jogg mellom. Rolig oppvarming og nedjogg.'};
+      if (phaseName === 'Skjerping') {
+        if (w % 2 === 1) return {
+          title:'Løp, intervall', sone:'Z4–Z5', pace:PACE.femK + ' /km (5 km-fart)',
+          plan:'5 × 3 min i 5 km-fart, 2 min rolig jogg mellom. Rolig oppvarming og nedjogg.'};
+        if (w >= 27) return {
+          title:'Løp, 10 km-fart', sone:'Z4', pace:PACE.tiK + ' /km (10 km-fart ut fra siste test)',
+          plan:'3 × 2 km i 10 km-fart, 2–3 min rolig jogg mellom. Rolig oppvarming og nedjogg.'};
+        return {
+          title:'Løp, terskel', sone:'Z3–Z4', pace:PACE.terskel + ' /km (terskel)',
+          plan:'2–3 × 8–10 min i terskelfart, 2–3 min rolig jogg mellom. Rolig oppvarming og nedjogg.'};
+      }
+      return {
+        title:'Løp, kvalitet (kort)', sone:'Z3–Z4', pace:PACE.tiK + ' /km (10 km-fart ut fra siste test)',
+        plan:'4–5 × 2 min i 10 km-fart med god pause. Kort og lett — du skal være uthvilt til løpet.'};
     }
 
     const HOFTE_KNE_OPPVARMING = [
@@ -113,13 +166,12 @@
     ];
 
     const HOFTE_KNE = [
-      'Bulgarian split squat — 3×8-10 per ben',
-      'Ettbens hofteløft (glute bridge) — 3×12 per ben',
-      'Copenhagen plank (adduktor) — 3×20-30 sek per side',
-      'Step-ups — 3×10 per ben',
-      'Ettbens tåhev — 3×15 per ben',
+      'Bulgarian split squat — 3×6-8 per ben, tungt (RPE 8)',
+      'Nordic hamstring curl — 2-3×5 (eller leg curl 3×8-10)',
+      'Ettbens hofteløft (glute bridge) — 3×8-12 per ben, legg på vekt når 12 går lett',
+      'Ettbens tåhev — 3×6-8 per ben, tungt (med vekt)',
       'Stående hofteabduksjon m/ strømpe — 3×15 per side',
-      'Wall sit eller terminal kne-ekstensjon m/ bånd — 2×30-45 sek',
+      'Copenhagen plank (adduktor) — 3×20-30 sek per side',
     ];
 
     const OVERKROPP = [
@@ -138,31 +190,29 @@
     function sessionFor(dow, weekNum){
       const phase = phaseForWeek(weekNum);
       const wk = weeklyTarget(weekNum);
-      const longKm = wk*0.45, easyKm = wk*0.30, qualKm = wk*0.25;
-      const paceByPhase = {
-        'Grunntrening': {easy:'7:30–8:00', qual:'strides/fartlek — kort og lekent', long:'7:30–8:00'},
-        'Oppbygging':   {easy:'7:15–7:45', qual:'6:15–6:40 (terskel)', long:'7:15–7:45'},
-        'Skjerping':    {easy:'7:00–7:30', qual:'3:50–4:10 (rundt målfart)', long:'6:45–7:15, fart siste del'},
-        'Nedtrapping':  {easy:'7:15–7:45', qual:'4:00–4:15, kort', long:'7:15–7:45, kort'},
-      }[phase.name];
-      const soneByPhase = {
-        'Grunntrening': {easy:'Z2', qual:'Z2–Z3', long:'Z2'},
-        'Oppbygging':   {easy:'Z2', qual:'Z3–Z4', long:'Z2'},
-        'Skjerping':    {easy:'Z2', qual:'Z4–Z5', long:'Z2–Z3'},
-        'Nedtrapping':  {easy:'Z2', qual:'Z3', long:'Z2'},
-      }[phase.name];
+      const q = qualitySession(phase.name, weekNum);
+      const fourRuns = wk >= FOUR_RUNS_FROM_KM;
+      const share = fourRuns ? {long:0.38, easy:0.22, easy2:0.18, qual:0.22} : {long:0.45, easy:0.30, easy2:0, qual:0.25};
+      // Testuke: 5 km-test + ca. 2 km oppvarming/nedjogg, resten av ukevolumet fordeles på de andre øktene.
+      const qualKm = q.test ? 7 : wk*share.qual;
+      const scale = q.test ? Math.max(wk-7, 0)/(wk*(1-share.qual)) : 1;
+      const longKm = wk*share.long*scale, easyKm = wk*share.easy*scale, easy2Km = wk*share.easy2*scale;
+      const rolig = {pace:PACE.rolig + ' /km (veiledende — styr etter puls)', sone:'Z2'};
 
       switch(dow){
         case 'Man': return {type:'styrke', title:'Styrke — hofte/kne', detail:{warmup:HOFTE_KNE_OPPVARMING, exercises:HOFTE_KNE}};
-        case 'Tirs': return {type:'løp', title:'Løp, rolig', km:easyKm, pace:paceByPhase.easy, sone:soneByPhase.easy};
+        case 'Tirs': return {type:'løp', title:'Løp, rolig', km:easyKm, ...rolig};
         case 'Ons': return {type:'hvile', title:'Hvile'};
-        case 'Tors': return {type:'løp', title:'Løp, kvalitet', km:qualKm, pace:paceByPhase.qual, sone:soneByPhase.qual};
+        case 'Tors': return {type:'løp', title:q.title, km:qualKm, pace:q.pace, sone:q.sone, plan:q.plan};
         case 'Fre': return {type:'styrke', title:'Styrke — overkropp', detail:{exercises:OVERKROPP, link:OVERKROPP_LINK}};
-        case 'Lør': return {type:'hvile', title:'Hvile'};
-        case 'Søn': return {type:'løp', title:'Løp, langtur', km:longKm, pace:paceByPhase.long, sone:soneByPhase.long};
+        case 'Lør': return fourRuns
+          ? {type:'løp', title:'Løp, rolig (kort)', km:easy2Km, ...rolig}
+          : {type:'hvile', title:'Hvile'};
+        case 'Søn': return {type:'løp', title:'Løp, langtur', km:longKm, ...rolig};
       }
     }
 
+    function addDays(d, n){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()+n); }
     function fmtDate(d){ return d.toLocaleDateString('nb-NO', {day:'2-digit', month:'2-digit'}); }
 
     let currentWeek = 1;
@@ -185,8 +235,8 @@
 
     function renderWeekNav(){
       document.getElementById('weekNum').textContent = currentWeek;
-      const ws = new Date(START.getTime() + (currentWeek-1)*7*24*60*60*1000);
-      const we = new Date(ws.getTime() + 6*24*60*60*1000);
+      const ws = addDays(START, (currentWeek-1)*7);
+      const we = addDays(ws, 6);
       document.getElementById('weekDates').textContent = `${fmtDate(ws)}–${fmtDate(we)} · ${phaseForWeek(currentWeek).name}`;
       document.getElementById('weekKm').textContent = `~${weeklyTarget(currentWeek).toFixed(1)} km`;
     }
@@ -204,7 +254,8 @@
         if (s.type === 'løp') {
           bodyHtml = `
             <div class="row"><b>Distanse:</b> ~${s.km.toFixed(1)} km</div>
-            <div class="row"><b>Tempo:</b> ${s.pace} /km</div>
+            ${s.plan ? `<div class="row"><b>Opplegg:</b> ${s.plan}</div>` : ''}
+            <div class="row"><b>Tempo:</b> ${s.pace}</div>
             <div class="row"><b>Sone:</b> ${s.sone}</div>`;
         } else if (s.type === 'styrke') {
           if (s.detail.exercises) {
@@ -234,12 +285,23 @@
       });
     }
 
+    function renderPaceNote(){
+      const nextTest = TEST_WEEKS.find(w => w >= elapsedWeeks);
+      let txt = `<strong>Fart:</strong> regnet fra siste 5 km-test — ${fmtTime(TEST_5K.seconds)} (${TEST_5K.date}), ${fmtTime(P5)}/km.`;
+      if (nextTest) {
+        const d = addDays(START, (nextTest-1)*7 + 3);
+        txt += ` Neste test: uke ${nextTest} (${fmtDate(d)}). Farter i ukene etter oppdateres da.`;
+      }
+      document.getElementById('paceNote').innerHTML = txt;
+    }
+
     function renderAll(){
       if (currentWeek < 1) currentWeek = 1;
       if (currentWeek > TOTAL_WEEKS) currentWeek = TOTAL_WEEKS;
       renderPhases();
       renderWeekNav();
       renderDays();
+      renderPaceNote();
     }
 
     document.getElementById('prevWeek').addEventListener('click', () => { currentWeek--; renderAll(); });

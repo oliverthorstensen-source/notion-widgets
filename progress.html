@@ -86,7 +86,7 @@
   </div>
 
   <footer>
-    <strong>Antakelser i planen:</strong> Start 31. aug 2026, ~15 km/uke i starten, +8 %/uke, tak på 42 km/uke, nedtrapping hver 4. uke og de siste 3 ukene før løp. Antatt løpsdato: <strong>midt i mai 2027</strong> (ukjent eksakt dato — si ifra hvis du har den faktiske). "Km løpt forrige uke" og "styrkeøkter" hentes live fra Notion ved sidelasting — faller tilbake til siste kjente snapshot om henting feiler.
+    <strong>Antakelser i planen:</strong> Start 31. aug 2026. Planen ble justert 5. okt 2026 til faktisk nivå: ~16 km/uke, +5 %/uke, tak på 42 km/uke, rolig uke hver 4. uke og nedtrapping de siste 3 ukene før løp. Antatt løpsdato: <strong>midt i mai 2027</strong> (ukjent eksakt dato — si ifra hvis du har den faktiske). "Km løpt forrige uke" og "styrkeøkter" hentes live fra Notion ved sidelasting — faller tilbake til siste kjente snapshot om henting feiler.
   </footer>
 
   <script>
@@ -95,14 +95,20 @@
     // slik at widgeten aldri vises tom eller knekker.
     const WORKER_URL = 'https://helse-widgets.oliver-thorstensen.workers.dev/stats';
 
-    let ACTUAL_RUN_KM_LAST_7D = 9.2;
-    let ACTUAL_STRENGTH_LAST_7D = 0;
-    let CUMULATIVE_ACTUAL_KM = 9.2;
+    let ACTUAL_RUN_KM_LAST_7D = 10.4;
+    let ACTUAL_STRENGTH_LAST_7D = 1;
+    let CUMULATIVE_ACTUAL_KM = 61.3;
 
     // --- plan-parametre ---
     const START = new Date(2026, 7, 31); // 31. aug 2026 (måned er 0-indeksert)
     const RACE = new Date(2027, 4, 16);  // antatt, midt i mai 2027
-    const BASE = 15.0, GROWTH = 1.08, PEAK = 42.0;
+    // Samme modell som plan.html: uke 1-5 er opprinnelig plan, fra uke 6 er planen ankret
+    // på faktisk nivå (~16 km/uke) med roligere økning.
+    const OLD_BASE = 15.0, OLD_GROWTH = 1.08;
+    const REANCHOR_WEEK = 6;
+    const BASE = 16.0, GROWTH = 1.05, PEAK = 42.0;
+    const REANCHOR_START = new Date(START.getTime() + (REANCHOR_WEEK-1)*7*24*60*60*1000); // 5. okt 2026
+    const ACTUAL_KM_BEFORE_REANCHOR = 50.9; // løpt 31. aug–4. okt (Strava)
 
     function weekIndex(d){ return Math.floor((d-START)/(1000*60*60*24*7)) + 1; }
 
@@ -113,7 +119,9 @@
       if (weeksToRace <= 1) return PEAK*0.4;
       if (weeksToRace <= 2) return PEAK*0.55;
       if (weeksToRace <= 3) return PEAK*0.7;
-      let val = Math.min(BASE*Math.pow(GROWTH, w-1), PEAK);
+      let val = w < REANCHOR_WEEK
+        ? OLD_BASE*Math.pow(OLD_GROWTH, w-1)
+        : Math.min(BASE*Math.pow(GROWTH, w-REANCHOR_WEEK), PEAK);
       if (w % 4 === 0) val *= 0.75;
       return val;
     }
@@ -138,18 +146,19 @@
       document.getElementById('plannedMonth').innerHTML = `${plannedKmOver(30, tomorrow).toFixed(1)} <small>km</small>`;
       document.getElementById('planned6mo').innerHTML = `${plannedKmOver(182, tomorrow).toFixed(1)} <small>km</small>`;
 
-      const daysElapsed = Math.max(1, Math.round((today-START)/(1000*60*60*24)) + 1);
-      const plannedToDate = plannedKmOver(daysElapsed, START);
-      const delta = CUMULATIVE_ACTUAL_KM - plannedToDate;
+      // Sammenligner fra planen ble justert (uke 6), ikke fra 31. aug.
+      const daysElapsed = Math.max(1, Math.round((today-REANCHOR_START)/(1000*60*60*24)) + 1);
+      const plannedToDate = plannedKmOver(daysElapsed, REANCHOR_START);
+      const delta = Math.max(CUMULATIVE_ACTUAL_KM - ACTUAL_KM_BEFORE_REANCHOR, 0) - plannedToDate;
 
       const badge = document.getElementById('statusBadge');
       const text = document.getElementById('statusText');
       if (delta >= 0) {
         badge.className = 'badge ahead';
-        text.innerHTML = `<strong>Foran planen</strong> — ${delta.toFixed(1)} km mer enn planlagt siden 31. aug.`;
+        text.innerHTML = `<strong>Foran planen</strong> — ${delta.toFixed(1)} km mer enn planlagt siden planen ble justert 5. okt.`;
       } else {
         badge.className = 'badge behind';
-        text.innerHTML = `<strong>Litt bak planen</strong> — ${Math.abs(delta).toFixed(1)} km mindre enn planlagt siden 31. aug (tidlig i løpet, ingen grunn til panikk).`;
+        text.innerHTML = `<strong>Litt bak planen</strong> — ${Math.abs(delta).toFixed(1)} km mindre enn planlagt siden planen ble justert 5. okt.`;
       }
     }
 
